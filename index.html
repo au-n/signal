@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SignalMap">
+<title>SignalMap</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+
+<style>
+/* ========== リセット & ベース ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%;
+  background: #1a202c;
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  font-size: 16px;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* ========== レイアウト ========== */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+}
+
+/* ========== ヘッダー ========== */
+#header {
+  background: #2d3748;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #4a5568;
+  flex-shrink: 0;
+  z-index: 1000;
+}
+#header h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #90cdf4;
+  letter-spacing: 0.05em;
+}
+#gps-status {
+  font-size: 12px;
+  color: #718096;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#gps-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #718096;
+  transition: background 0.3s;
+}
+#gps-dot.active { background: #68d391; }
+#gps-dot.error  { background: #fc8181; }
+
+/* ========== 地図 ========== */
+#map-container {
+  flex: 1 1 60%;
+  position: relative;
+  min-height: 0;
+}
+#map {
+  width: 100%; height: 100%;
+}
+
+/* ロングタップ中のリング */
+#longpress-ring {
+  position: absolute;
+  border: 3px solid #63b3ed;
+  border-radius: 50%;
+  width: 60px; height: 60px;
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  z-index: 1000;
+  transition: transform 0.5s ease-out, opacity 0.2s;
+  opacity: 0;
+}
+#longpress-ring.active {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+/* ========== アクティブ表示バー ========== */
+#active-bar {
+  background: #2d3748;
+  padding: 6px 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid #4a5568;
+  border-bottom: 1px solid #4a5568;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+#active-bar.idle    { color: #718096; }
+#active-bar.red     { background: rgba(229,62,62,0.25);   color: #fc8181; }
+#active-bar.yellow  { background: rgba(236,201,75,0.25);  color: #f6e05e; }
+#active-bar.green   { background: rgba(56,161,105,0.25);  color: #68d391; }
+#active-bar.arrow   { background: rgba(49,130,206,0.25);  color: #63b3ed; }
+
+/* ========== ボタンエリア ========== */
+#button-area {
+  flex: 0 0 auto;
+  background: #1a202c;
+  padding: 10px 8px 16px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+/* セーフエリア対応 */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #button-area { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+
+.sig-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  border: none;
+  min-height: 88px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+.sig-btn .btn-icon  { font-size: 28px; line-height: 1; }
+.sig-btn .btn-label { font-size: 12px; font-weight: 700; margin-top: 4px; }
+.sig-btn .btn-timer { font-size: 22px; font-weight: 800; margin-top: 2px; line-height: 1; }
+
+/* 各色 */
+#btn-red    { background: linear-gradient(145deg, #E53E3E, #C53030); box-shadow: 0 4px 12px rgba(229,62,62,0.4); color: #fff; }
+#btn-yellow { background: linear-gradient(145deg, #D69E2E, #B7791F); box-shadow: 0 4px 12px rgba(214,158,46,0.4); color: #fff; }
+#btn-green  { background: linear-gradient(145deg, #38A169, #276749); box-shadow: 0 4px 12px rgba(56,161,105,0.4); color: #fff; }
+#btn-arrow  { background: linear-gradient(145deg, #3182CE, #2B6CB0); box-shadow: 0 4px 12px rgba(49,130,206,0.4); color: #fff; }
+
+/* 押している状態 */
+.sig-btn.pressing {
+  transform: scale(0.93);
+  filter: brightness(1.3);
+  box-shadow: 0 0 20px 4px currentColor;
+}
+/* 無効状態 */
+.sig-btn:disabled, .sig-btn.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+  transform: none;
+  filter: none;
+}
+
+/* パルスアニメーション（押している間） */
+@keyframes pulse-glow {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 1;   }
+  100% { opacity: 0.6; }
+}
+.sig-btn.pressing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255,255,255,0.15);
+  animation: pulse-glow 1s infinite;
+}
+
+/* ========== モーダル ========== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9000;
+  padding: 20px;
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: #2d3748;
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%; max-width: 360px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal-box h2 { font-size: 18px; color: #90cdf4; margin-bottom: 16px; }
+.modal-box p  { font-size: 14px; color: #a0aec0; margin-bottom: 12px; }
+.modal-box input[type="text"] {
+  width: 100%; padding: 12px;
+  background: #1a202c; border: 1px solid #4a5568;
+  border-radius: 8px; color: #e2e8f0; font-size: 16px;
+  margin-bottom: 16px;
+  outline: none;
+}
+.modal-box input:focus { border-color: #63b3ed; }
+.modal-actions { display: flex; gap: 10px; }
+.btn-modal {
+  flex: 1; padding: 12px;
+  border-radius: 8px; border: none;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer;
+}
+.btn-modal.primary  { background: #3182ce; color: #fff; }
+.btn-modal.secondary { background: #4a5568; color: #e2e8f0; }
+.btn-modal.danger   { background: #e53e3e; color: #fff; }
+
+/* ========== ポップアップ（Leaflet上書き） ========== */
+.leaflet-popup-content-wrapper {
+  background: #2d3748 !important;
+  color: #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  border: 1px solid #4a5568;
+}
+.leaflet-popup-tip { background: #2d3748 !important; }
+.leaflet-popup-content { margin: 0 !important; padding: 0 !important; }
+.popup-inner { padding: 14px 16px; min-width: 220px; }
+.popup-inner h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.popup-inner .popup-state { font-size: 13px; margin-bottom: 6px; }
+.popup-inner .popup-records { font-size: 12px; color: #a0aec0; }
+.popup-inner .popup-record-row { display: flex; gap: 8px; padding: 2px 0; }
+.popup-inner .popup-actions { display: flex; gap: 8px; margin-top: 10px; }
+.popup-btn {
+  flex: 1; padding: 8px 6px;
+  border-radius: 6px; border: none;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.popup-btn.edit   { background: #3182ce; color: #fff; }
+.popup-btn.delete { background: #e53e3e; color: #fff; }
+
+/* ========== トースト通知 ========== */
+#toast {
+  position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #2d3748; color: #e2e8f0;
+  padding: 10px 20px; border-radius: 24px;
+  font-size: 14px; font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  z-index: 8000;
+  opacity: 0; transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ========== 設定パネル ========== */
+#settings-btn {
+  background: none; border: none; color: #90cdf4;
+  font-size: 20px; cursor: pointer; padding: 4px 8px;
+  border-radius: 6px;
+}
+#settings-btn:active { background: rgba(144,205,244,0.15); }
+
+/* ========== Leaflet カスタムピン ========== */
+.signal-pin {
+  width: 32px; height: 32px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 3px solid rgba(255,255,255,0.8);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.signal-pin-wrap {
+  width: 32px; height: 40px;
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- ヘッダー -->
+  <div id="header">
+    <h1>SignalMap</h1>
+    <div id="gps-status">
+      <div id="gps-dot"></div>
+      <span id="gps-text">GPS取得中…</span>
+    </div>
+    <button id="settings-btn" title="設定">⚙</button>
+  </div>
+
+  <!-- 地図 -->
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="longpress-ring"></div>
+  </div>
+
+  <!-- アクティブ表示バー -->
+  <div id="active-bar" class="idle">長押しで信号状態を記録</div>
+
+  <!-- ボタンエリア -->
+  <div id="button-area">
+    <button class="sig-btn" id="btn-red"    data-state="red">
+      <span class="btn-icon">🔴</span>
+      <span class="btn-label">赤</span>
+      <span class="btn-timer"></span>
+    </button>
+    <button class="sig-btn" id="btn-yellow" data-state="yellow">
+      <span class="btn-icon">🟡</span>
+      <span class="btn-label">黄</span>
+      <span class="btn-timer"></span>
+    </button>
+    <button class="sig-btn" id="btn-green"  data-state="green">
+      <span class="btn-icon">🟢</span>
+      <span class="btn-label">青</span>
+      <span class="btn-timer"></span>
+    </button>
+    <button class="sig-btn" id="btn-arrow"  data-state="arrow">
+      <span class="btn-icon">➡️</span>
+      <span class="btn-label">矢印</span>
+      <span class="btn-timer"></span>
+    </button>
+  </div>
+</div>
+
+<!-- 信号機登録モーダル -->
+<div id="register-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h2>信号機を登録</h2>
+    <p id="register-coords"></p>
+    <input type="text" id="register-name" placeholder="例：駅前交差点" maxlength="30">
+    <div class="modal-actions">
+      <button class="btn-modal secondary" id="register-cancel">キャンセル</button>
+      <button class="btn-modal primary"   id="register-ok">登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 信号機編集モーダル -->
+<div id="edit-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h2>信号機を編集</h2>
+    <input type="text" id="edit-name" placeholder="名前" maxlength="30">
+    <div class="modal-actions">
+      <button class="btn-modal secondary" id="edit-cancel">キャンセル</button>
+      <button class="btn-modal primary"   id="edit-ok">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div id="delete-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h2>削除の確認</h2>
+    <p id="delete-msg"></p>
+    <div class="modal-actions">
+      <button class="btn-modal secondary" id="delete-cancel">キャンセル</button>
+      <button class="btn-modal danger"    id="delete-ok">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div id="settings-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h2>設定</h2>
+    <p style="color:#a0aec0;font-size:13px;margin-bottom:8px;">クラスタリング半径（m）</p>
+    <input type="number" id="settings-radius" min="10" max="500" style="
+      width:100%;padding:12px;background:#1a202c;border:1px solid #4a5568;
+      border-radius:8px;color:#e2e8f0;font-size:16px;margin-bottom:16px;outline:none;
+    ">
+    <p style="color:#a0aec0;font-size:13px;margin-bottom:4px;">記録件数：<span id="settings-record-count">-</span> 件</p>
+    <p style="color:#a0aec0;font-size:13px;margin-bottom:16px;">信号機数：<span id="settings-signal-count">-</span> 基</p>
+    <div class="modal-actions">
+      <button class="btn-modal secondary" id="settings-close">閉じる</button>
+      <button class="btn-modal primary"   id="settings-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- トースト -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+// =====================================================
+//  定数・設定
+// =====================================================
+const STATE_LABELS = { red:'赤', yellow:'黄', green:'青', arrow:'矢印' };
+const STATE_COLORS = { red:'#E53E3E', yellow:'#D69E2E', green:'#38A169', arrow:'#3182CE', unknown:'#718096' };
+const STATE_EMOJIS = { red:'🔴', yellow:'🟡', green:'🟢', arrow:'➡️' };
+
+const DB_SIGNALS  = localforage.createInstance({ name: 'signalmap', storeName: 'signals' });
+const DB_RECORDS  = localforage.createInstance({ name: 'signalmap', storeName: 'records' });
+const DB_CONFIG   = localforage.createInstance({ name: 'signalmap', storeName: 'config' });
+
+let signals    = {};  // id -> signal object
+let noSleep    = null;
+let map        = null;
+let markers    = {};  // signalId -> L.Marker
+let myMarker   = null;
+let currentPos = null;
+let clusterRadius = 50; // meters
+
+// 長押し状態
+let pressState = {
+  active: false,
+  btnEl:  null,
+  state:  null,
+  startTime: null,
+  timerEl: null,
+  intervalId: null
+};
+
+// 地図ロングタップ
+let mapLongPress = {
+  timerId: null,
+  latlng:  null,
+  startX:  0,
+  startY:  0
+};
+
+// =====================================================
+//  ユーティリティ
+// =====================================================
+function uuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+function haversineM(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getDayType(date) {
+  const d = date.getDay();
+  return (d === 0 || d === 6) ? 'holiday' : 'weekday';
+}
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+function showToast(msg, ms = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// =====================================================
+//  GPS
+// =====================================================
+function initGPS() {
+  if (!navigator.geolocation) {
+    document.getElementById('gps-text').textContent = '非対応';
+    document.getElementById('gps-dot').classList.add('error');
+    return;
+  }
+  const opts = { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 };
+  navigator.geolocation.watchPosition(onPosition, onPositionError, opts);
+}
+
+function onPosition(pos) {
+  const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+  currentPos = { lat, lng };
+
+  const dot  = document.getElementById('gps-dot');
+  const text = document.getElementById('gps-text');
+  dot.classList.add('active');
+  dot.classList.remove('error');
+  text.textContent = `±${Math.round(accuracy)}m`;
+
+  if (!map._initialCenterDone) {
+    map.setView([lat, lng], 16);
+    map._initialCenterDone = true;
+  }
+
+  // 現在地マーカー更新
+  if (!myMarker) {
+    myMarker = L.circleMarker([lat, lng], {
+      radius: 8, color: '#63b3ed', fillColor: '#4299e1',
+      fillOpacity: 0.9, weight: 2
+    }).addTo(map);
+  } else {
+    myMarker.setLatLng([lat, lng]);
+  }
+}
+
+function onPositionError(err) {
+  document.getElementById('gps-dot').classList.add('error');
+  document.getElementById('gps-dot').classList.remove('active');
+  document.getElementById('gps-text').textContent = 'GPS失敗';
+  console.warn('GPS error:', err.message);
+}
+
+// =====================================================
+//  地図初期化
+// =====================================================
+function initMap() {
+  map = L.map('map', {
+    zoomControl: false,
+    attributionControl: false,
+    doubleClickZoom: false
+  }).setView([35.6812, 139.7671], 15);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+  }).addTo(map);
+
+  L.control.zoom({ position: 'topright' }).addTo(map);
+
+  // 地図ロングタップ（信号機登録）
+  const mapEl = document.getElementById('map');
+  mapEl.addEventListener('touchstart', onMapTouchStart, { passive: false });
+  mapEl.addEventListener('touchmove',  onMapTouchMove,  { passive: false });
+  mapEl.addEventListener('touchend',   onMapTouchEnd,   { passive: false });
+  mapEl.addEventListener('mousedown',  onMapMouseDown);
+  mapEl.addEventListener('mouseup',    onMapMouseUp);
+  mapEl.addEventListener('mousemove',  onMapMouseMove);
+}
+
+function onMapTouchStart(e) {
+  if (e.touches.length !== 1) return;
+  const t = e.touches[0];
+  mapLongPress.startX = t.clientX;
+  mapLongPress.startY = t.clientY;
+  startMapLongPress(e, t.clientX, t.clientY);
+}
+function onMapTouchMove(e) {
+  if (!mapLongPress.timerId) return;
+  const t = e.touches[0];
+  if (Math.abs(t.clientX - mapLongPress.startX) > 10 ||
+      Math.abs(t.clientY - mapLongPress.startY) > 10) {
+    cancelMapLongPress();
+  }
+}
+function onMapTouchEnd() { cancelMapLongPress(); }
+
+function onMapMouseDown(e) {
+  mapLongPress.startX = e.clientX;
+  mapLongPress.startY = e.clientY;
+  startMapLongPress(e, e.clientX, e.clientY);
+}
+function onMapMouseMove(e) {
+  if (!mapLongPress.timerId) return;
+  if (Math.abs(e.clientX - mapLongPress.startX) > 10 ||
+      Math.abs(e.clientY - mapLongPress.startY) > 10) {
+    cancelMapLongPress();
+  }
+}
+function onMapMouseUp() { cancelMapLongPress(); }
+
+function startMapLongPress(e, clientX, clientY) {
+  // ボタン操作中は無視
+  if (pressState.active) return;
+
+  const ring = document.getElementById('longpress-ring');
+  ring.style.left = clientX + 'px';
+  ring.style.top  = clientY + 'px';
+
+  const mapRect = document.getElementById('map').getBoundingClientRect();
+  const point = map.containerPointToLatLng(
+    L.point(clientX - mapRect.left, clientY - mapRect.top)
+  );
+  mapLongPress.latlng = point;
+
+  mapLongPress.timerId = setTimeout(() => {
+    ring.classList.add('active');
+    setTimeout(() => {
+      ring.classList.remove('active');
+      openRegisterModal(mapLongPress.latlng);
+    }, 150);
+    mapLongPress.timerId = null;
+  }, 500);
+}
+
+function cancelMapLongPress() {
+  if (mapLongPress.timerId) {
+    clearTimeout(mapLongPress.timerId);
+    mapLongPress.timerId = null;
+  }
+  document.getElementById('longpress-ring').classList.remove('active');
+}
+
+// =====================================================
+//  信号機登録
+// =====================================================
+function openRegisterModal(latlng) {
+  document.getElementById('register-coords').textContent =
+    `緯度 ${latlng.lat.toFixed(6)}  経度 ${latlng.lng.toFixed(6)}`;
+  document.getElementById('register-name').value = '';
+  openModal('register-modal');
+  document.getElementById('register-name').focus();
+}
+
+document.getElementById('register-cancel').addEventListener('click', () => {
+  closeModal('register-modal');
+});
+
+document.getElementById('register-ok').addEventListener('click', async () => {
+  const name = document.getElementById('register-name').value.trim();
+  if (!name) { showToast('名前を入力してください'); return; }
+
+  const sig = {
+    id:        uuid(),
+    name,
+    latitude:  mapLongPress.latlng.lat,
+    longitude: mapLongPress.latlng.lng,
+    createdAt: new Date().toISOString()
+  };
+  await DB_SIGNALS.setItem(sig.id, sig);
+  signals[sig.id] = sig;
+  addMarker(sig);
+  closeModal('register-modal');
+  showToast(`「${name}」を登録しました`);
+});
+
+document.getElementById('register-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('register-ok').click();
+});
+
+// =====================================================
+//  マーカー管理
+// =====================================================
+function makeIcon(color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
+    <path d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.268 21.732 0 14 0z"
+          fill="${color}" stroke="rgba(255,255,255,0.8)" stroke-width="2"/>
+    <circle cx="14" cy="14" r="6" fill="rgba(255,255,255,0.9)"/>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    iconSize:   [28, 36],
+    iconAnchor: [14, 36],
+    popupAnchor:[0, -38],
+    className: ''
+  });
+}
+
+function addMarker(sig) {
+  const icon   = makeIcon(STATE_COLORS.unknown);
+  const marker = L.marker([sig.latitude, sig.longitude], { icon }).addTo(map);
+  marker.bindPopup(() => buildPopupContent(sig.id), { maxWidth: 280, minWidth: 240 });
+  marker.on('click', () => { /* popup opens automatically */ });
+  markers[sig.id] = marker;
+  refreshMarkerColor(sig.id);
+}
+
+function refreshMarkerColor(sigId) {
+  const m = markers[sigId];
+  if (!m) return;
+  // 直近の記録から色を決める（最新1件）
+  getLatestRecord(sigId).then(rec => {
+    const color = rec ? STATE_COLORS[rec.state] : STATE_COLORS.unknown;
+    m.setIcon(makeIcon(color));
+  });
+}
+
+async function getLatestRecord(sigId) {
+  const all = [];
+  await DB_RECORDS.iterate(v => { if (v.signalId === sigId) all.push(v); });
+  if (!all.length) return null;
+  all.sort((a, b) => b.startTime.localeCompare(a.startTime));
+  return all[0];
+}
+
+async function buildPopupContent(sigId) {
+  const sig  = signals[sigId];
+  if (!sig) return '<div class="popup-inner"><p>データなし</p></div>';
+
+  // 直近5件取得
+  const recs = [];
+  await DB_RECORDS.iterate(v => { if (v.signalId === sigId) recs.push(v); });
+  recs.sort((a, b) => b.startTime.localeCompare(a.startTime));
+  const recent = recs.slice(0, 5);
+
+  const latestState = recent[0] ? recent[0].state : null;
+  const stateText   = latestState
+    ? `${STATE_EMOJIS[latestState]} 最終：${STATE_LABELS[latestState]}（${formatTime(recent[0].startTime)}）`
+    : '記録なし';
+
+  const rows = recent.map(r =>
+    `<div class="popup-record-row">
+       <span>${formatTime(r.startTime)}</span>
+       <span>${STATE_EMOJIS[r.state]} ${STATE_LABELS[r.state]}</span>
+       <span>${r.duration}秒</span>
+     </div>`
+  ).join('');
+
+  const div = document.createElement('div');
+  div.className = 'popup-inner';
+  div.innerHTML = `
+    <h3>${sig.name}</h3>
+    <div class="popup-state">${stateText}</div>
+    <div class="popup-records">${rows || '<span>記録なし</span>'}</div>
+    <div class="popup-actions">
+      <button class="popup-btn edit"   onclick="openEditModal('${sigId}')">編集</button>
+      <button class="popup-btn delete" onclick="openDeleteModal('${sigId}')">削除</button>
+    </div>
+  `;
+  return div;
+}
+
+// =====================================================
+//  信号機編集・削除
+// =====================================================
+let editTargetId   = null;
+let deleteTargetId = null;
+
+window.openEditModal = function(sigId) {
+  editTargetId = sigId;
+  document.getElementById('edit-name').value = signals[sigId]?.name || '';
+  closeAllPopups();
+  openModal('edit-modal');
+};
+
+document.getElementById('edit-cancel').addEventListener('click', () => closeModal('edit-modal'));
+document.getElementById('edit-ok').addEventListener('click', async () => {
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) { showToast('名前を入力してください'); return; }
+  signals[editTargetId].name = name;
+  await DB_SIGNALS.setItem(editTargetId, signals[editTargetId]);
+  closeModal('edit-modal');
+  showToast('更新しました');
+});
+
+window.openDeleteModal = function(sigId) {
+  deleteTargetId = sigId;
+  document.getElementById('delete-msg').textContent =
+    `「${signals[sigId]?.name}」と紐付く全記録を削除します。元に戻せません。`;
+  closeAllPopups();
+  openModal('delete-modal');
+};
+
+document.getElementById('delete-cancel').addEventListener('click', () => closeModal('delete-modal'));
+document.getElementById('delete-ok').addEventListener('click', async () => {
+  const id = deleteTargetId;
+  // 信号機削除
+  await DB_SIGNALS.removeItem(id);
+  delete signals[id];
+  // 紐付き記録削除
+  const toDelete = [];
+  await DB_RECORDS.iterate((v, k) => { if (v.signalId === id) toDelete.push(k); });
+  await Promise.all(toDelete.map(k => DB_RECORDS.removeItem(k)));
+  // マーカー削除
+  if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+  closeModal('delete-modal');
+  showToast('削除しました');
+});
+
+function closeAllPopups() {
+  map.closePopup();
+}
+
+// =====================================================
+//  設定
+// =====================================================
+document.getElementById('settings-btn').addEventListener('click', async () => {
+  document.getElementById('settings-radius').value = clusterRadius;
+  // カウント
+  let rCount = 0, sCount = 0;
+  await DB_RECORDS.iterate(() => { rCount++; });
+  sCount = Object.keys(signals).length;
+  document.getElementById('settings-record-count').textContent = rCount;
+  document.getElementById('settings-signal-count').textContent = sCount;
+  openModal('settings-modal');
+});
+document.getElementById('settings-close').addEventListener('click', () => closeModal('settings-modal'));
+document.getElementById('settings-save').addEventListener('click', async () => {
+  const v = parseInt(document.getElementById('settings-radius').value, 10);
+  if (v >= 10 && v <= 500) {
+    clusterRadius = v;
+    await DB_CONFIG.setItem('clusterRadius', v);
+    showToast(`クラスタリング半径を ${v}m に設定しました`);
+  }
+  closeModal('settings-modal');
+});
+
+// =====================================================
+//  信号ボタン（長押し記録）
+// =====================================================
+const buttons = document.querySelectorAll('.sig-btn');
+
+function getSignalForRecording() {
+  if (!currentPos) return null;
+  let nearest = null, minDist = Infinity;
+  for (const sig of Object.values(signals)) {
+    const d = haversineM(currentPos.lat, currentPos.lng, sig.latitude, sig.longitude);
+    if (d < minDist) { minDist = d; nearest = sig; }
+  }
+  if (nearest && minDist <= clusterRadius) return nearest;
+  return null;
+}
+
+function startPress(btn) {
+  if (pressState.active) return;
+
+  const state = btn.dataset.state;
+  pressState.active    = true;
+  pressState.btnEl     = btn;
+  pressState.state     = state;
+  pressState.startTime = new Date();
+  pressState.timerEl   = btn.querySelector('.btn-timer');
+
+  btn.classList.add('pressing');
+
+  // 他ボタンを無効化
+  buttons.forEach(b => { if (b !== btn) b.classList.add('disabled'); });
+
+  // アクティブバー更新
+  const bar = document.getElementById('active-bar');
+  bar.className = 'idle ' + state;
+
+  // タイマー開始
+  let elapsed = 0;
+  pressState.timerEl.textContent = '0秒';
+  pressState.intervalId = setInterval(() => {
+    elapsed++;
+    pressState.timerEl.textContent = `${elapsed}秒`;
+    bar.textContent = `${STATE_EMOJIS[state]}　押し中…　${elapsed}秒`;
+  }, 1000);
+}
+
+async function endPress() {
+  if (!pressState.active) return;
+
+  const endTime   = new Date();
+  const startTime = pressState.startTime;
+  const duration  = Math.round((endTime - startTime) / 1000);
+  const state     = pressState.state;
+
+  // バイブレーション
+  if (navigator.vibrate) navigator.vibrate(40);
+
+  // クリーンアップ
+  clearInterval(pressState.intervalId);
+  pressState.btnEl.classList.remove('pressing');
+  pressState.timerEl.textContent = '';
+  buttons.forEach(b => b.classList.remove('disabled'));
+
+  const bar = document.getElementById('active-bar');
+  bar.className = 'idle';
+  bar.textContent = '長押しで信号状態を記録';
+
+  pressState.active = false;
+
+  // 0秒未満は無視
+  if (duration < 1) return;
+
+  // 最近傍信号機を特定
+  const sig = getSignalForRecording();
+  if (!sig) {
+    showToast(`50m以内に信号機がありません。地図を長押しして登録してください。`);
+    return;
+  }
+
+  // 記録保存
+  const rec = {
+    id:        uuid(),
+    signalId:  sig.id,
+    state,
+    startTime: startTime.toISOString(),
+    endTime:   endTime.toISOString(),
+    duration,
+    dayType:   getDayType(startTime),
+    latitude:  currentPos?.lat ?? null,
+    longitude: currentPos?.lng ?? null
+  };
+  await DB_RECORDS.setItem(rec.id, rec);
+
+  // ピン色更新
+  refreshMarkerColor(sig.id);
+
+  showToast(`「${sig.name}」に ${STATE_LABELS[state]} ${duration}秒 を記録`);
+}
+
+buttons.forEach(btn => {
+  // タッチ
+  btn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    startPress(btn);
+  }, { passive: false });
+  btn.addEventListener('touchend', e => {
+    e.preventDefault();
+    endPress();
+  }, { passive: false });
+  btn.addEventListener('touchcancel', e => {
+    e.preventDefault();
+    endPress();
+  }, { passive: false });
+
+  // マウス（PC確認用）
+  btn.addEventListener('mousedown', () => startPress(btn));
+  btn.addEventListener('mouseup',   () => endPress());
+  btn.addEventListener('mouseleave', () => { if (pressState.active && pressState.btnEl === btn) endPress(); });
+});
+
+// =====================================================
+//  データ読み込み
+// =====================================================
+async function loadSignals() {
+  await DB_SIGNALS.iterate(sig => {
+    signals[sig.id] = sig;
+  });
+  for (const sig of Object.values(signals)) {
+    addMarker(sig);
+  }
+}
+
+async function loadConfig() {
+  const r = await DB_CONFIG.getItem('clusterRadius');
+  if (r) clusterRadius = r;
+}
+
+// =====================================================
+//  NoSleep（画面ロック防止）
+// =====================================================
+function initNoSleep() {
+  if (typeof NoSleep !== 'undefined') {
+    noSleep = new NoSleep();
+    document.addEventListener('touchstart', () => {
+      noSleep.enable();
+    }, { once: true });
+  }
+}
+
+// =====================================================
+//  Service Worker 登録
+// =====================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
+  });
+}
+
+// =====================================================
+//  起動シーケンス
+// =====================================================
+async function main() {
+  await loadConfig();
+  initMap();
+  await loadSignals();
+  initGPS();
+  initNoSleep();
+}
+
+main();
+</script>
+</body>
+</html>
