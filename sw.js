@@ -1,8 +1,5 @@
-const CACHE_NAME = 'signalmap-v1';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
+const CACHE_NAME = 'signalmap-v2';
+const STATIC_ASSETS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js',
@@ -11,12 +8,9 @@ const ASSETS = [
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      // キャッシュ失敗しても続行（外部CDNは任意）
-      return Promise.allSettled(
-        ASSETS.map(url => cache.add(url).catch(() => null))
-      );
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(STATIC_ASSETS.map(url => cache.add(url).catch(() => null)))
+    ).then(() => self.skipWaiting())
   );
 });
 
@@ -29,20 +23,35 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // POST などは無視
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
-        // 成功したレスポンスをキャッシュに追加
+  const url = new URL(event.request.url);
+
+  // HTMLファイルはネットワーク優先（常に最新を取得、失敗時のみキャッシュ）
+  if (url.pathname.endsWith('.html') || url.pathname.endsWith('/')) {
+    event.respondWith(
+      fetch(event.request).then(response => {
         if (response && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
-      }).catch(() => cached || new Response('Offline', { status: 503 }));
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // 静的アセット（CSS/JS/画像）はキャッシュ優先
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => new Response('Offline', { status: 503 }));
     })
   );
 });
