@@ -18,21 +18,13 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
-
-#app {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  height: 100dvh;
-}
+#app { display: flex; flex-direction: column; height: 100%; height: 100dvh; }
 
 /* ヘッダー */
 #header {
   background: #2d3748;
   padding: 8px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid #4a5568;
   flex-shrink: 0;
 }
@@ -44,167 +36,197 @@ html, body {
 }
 .icon-btn:active { background: rgba(144,205,244,0.15); }
 
-/* フィルターパネル */
-#filter-panel {
-  background: #2d3748;
-  padding: 8px 12px;
-  border-bottom: 1px solid #4a5568;
-  flex-shrink: 0;
+/* タブ */
+#tabs {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
+  background: #2d3748;
+  border-bottom: 2px solid #4a5568;
+  flex-shrink: 0;
 }
+.tab-btn {
+  flex: 1; padding: 8px 0;
+  background: none; border: none;
+  color: #718096; font-size: 14px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.2s;
+}
+.tab-btn.active { color: #90cdf4; border-bottom-color: #90cdf4; }
+.tab-btn:active { background: rgba(144,205,244,0.08); }
 
+/* タブコンテンツ */
+.tab-content { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+.tab-content.hidden { display: none; }
+
+/* ========== 一覧タブ ========== */
+#filter-panel {
+  background: #2d3748; padding: 8px 12px;
+  border-bottom: 1px solid #4a5568;
+  flex-shrink: 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
 select {
-  background: #4a5568;
-  border: none;
-  border-radius: 8px;
-  color: #e2e8f0;
-  padding: 6px 10px;
-  font-size: 13px;
-  cursor: pointer;
-  outline: none;
-  touch-action: manipulation;
+  background: #4a5568; border: none; border-radius: 8px;
+  color: #e2e8f0; padding: 6px 10px; font-size: 13px;
+  cursor: pointer; outline: none; touch-action: manipulation;
 }
-select:focus { border: 1px solid #63b3ed; }
-
 #filter-date-from, #filter-date-to {
-  background: #4a5568;
-  border: none;
-  border-radius: 8px;
-  color: #e2e8f0;
-  padding: 6px 10px;
-  font-size: 13px;
-  outline: none;
+  background: #4a5568; border: none; border-radius: 8px;
+  color: #e2e8f0; padding: 6px 10px; font-size: 13px; outline: none;
 }
 #filter-date-from::-webkit-calendar-picker-indicator,
-#filter-date-to::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-}
-
+#filter-date-to::-webkit-calendar-picker-indicator { filter: invert(1); }
 #filter-reset {
-  background: #e53e3e;
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  touch-action: manipulation;
+  background: #e53e3e; border: none; border-radius: 8px;
+  color: #fff; padding: 6px 12px; font-size: 13px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
 }
 #filter-reset:active { background: #c53030; }
 
-/* 統計バー */
 #stats-bar {
-  background: #1e2736;
-  padding: 8px 12px;
-  display: flex;
-  gap: 12px;
-  border-bottom: 1px solid #4a5568;
-  flex-shrink: 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  background: #1e2736; padding: 8px 12px;
+  display: flex; gap: 12px; border-bottom: 1px solid #4a5568;
+  flex-shrink: 0; overflow-x: auto; -webkit-overflow-scrolling: touch;
 }
-.stat-chip {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 600;
-}
+.stat-chip { display: flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 13px; font-weight: 600; }
 .stat-chip .chip-emoji { font-size: 16px; }
 .stat-chip .chip-count { color: #a0aec0; }
 #total-count { color: #90cdf4; font-size: 13px; font-weight: 700; white-space: nowrap; }
 
-/* 記録一覧 */
 #records-section {
-  flex: 1 1 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  flex: 1 1 0; overflow-y: auto;
+  -webkit-overflow-scrolling: touch; touch-action: pan-y;
 }
-
 .record-card {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid #2d3748;
-  gap: 10px;
+  display: flex; align-items: center; padding: 10px 12px;
+  border-bottom: 1px solid #2d3748; gap: 10px;
 }
 .record-card:nth-child(even) { background: #1e2736; }
-
 .rec-state-icon {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
 }
 .rec-state-icon.red    { background: rgba(229,62,62,0.2); }
 .rec-state-icon.yellow { background: rgba(214,158,46,0.2); }
 .rec-state-icon.green  { background: rgba(56,161,105,0.2); }
 .rec-state-icon.arrow  { background: rgba(49,130,206,0.2); }
-
 .rec-body { flex: 1; min-width: 0; }
-.rec-signal-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: #e2e8f0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.rec-meta {
-  font-size: 12px;
-  color: #718096;
-  margin-top: 2px;
-}
-
-.rec-right {
-  flex-shrink: 0;
-  text-align: right;
-}
-.rec-duration-big {
-  font-size: 18px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
+.rec-signal-name { font-size: 14px; font-weight: 700; color: #e2e8f0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.rec-meta { font-size: 12px; color: #718096; margin-top: 2px; }
+.rec-right { flex-shrink: 0; text-align: right; }
+.rec-duration-big { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rec-duration-big.red    { color: #fc8181; }
 .rec-duration-big.yellow { color: #f6e05e; }
 .rec-duration-big.green  { color: #68d391; }
 .rec-duration-big.arrow  { color: #63b3ed; }
 .rec-duration-unit { font-size: 11px; color: #718096; }
+#records-empty { text-align: center; color: #4a5568; padding: 60px 20px; font-size: 14px; }
 
-#records-empty {
-  text-align: center;
-  color: #4a5568;
-  padding: 60px 20px;
-  font-size: 14px;
+/* ========== タイムラインタブ ========== */
+#tl-controls {
+  background: #2d3748; padding: 10px 12px;
+  border-bottom: 1px solid #4a5568; flex-shrink: 0;
+  display: flex; gap: 8px; align-items: center;
 }
+#tl-signal { flex: 1; }
+#tl-daytype { width: 100px; }
+
+#tl-legend {
+  background: #1e2736; padding: 6px 12px;
+  display: flex; gap: 14px; flex-shrink: 0;
+  border-bottom: 1px solid #4a5568;
+  font-size: 12px; color: #a0aec0;
+  overflow-x: auto;
+}
+.legend-item { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+#tl-body {
+  flex: 1 1 0; overflow: auto;
+  -webkit-overflow-scrolling: touch; touch-action: pan-y;
+  position: relative;
+}
+#tl-prompt, #tl-empty-msg {
+  text-align: center; color: #4a5568; padding: 60px 20px; font-size: 14px;
+}
+
+/* タイムライン行 */
+#tl-time-axis {
+  position: sticky; top: 0; z-index: 10;
+  background: #1a202c; border-bottom: 1px solid #4a5568;
+  height: 26px; display: flex; align-items: flex-end;
+  padding-bottom: 3px;
+}
+.tl-rows { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; }
+.tl-row { display: flex; align-items: center; height: 26px; }
+.tl-date-label {
+  width: 52px; flex-shrink: 0;
+  font-size: 11px; color: #718096;
+  text-align: right; padding-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.tl-bar-area {
+  flex: 1; position: relative; height: 22px;
+  background: #2d3748; border-radius: 4px; overflow: visible;
+}
+.tl-bar {
+  position: absolute; height: 18px; top: 2px;
+  border-radius: 3px; min-width: 3px;
+  cursor: pointer; transition: opacity 0.15s;
+  opacity: 0.9;
+}
+.tl-bar:active { opacity: 1; }
+.tl-bar.red    { background: #E53E3E; }
+.tl-bar.yellow { background: #D69E2E; }
+.tl-bar.green  { background: #38A169; }
+.tl-bar.arrow  { background: #3182CE; }
+.tl-now-line {
+  position: absolute; top: -26px; bottom: 0; width: 2px;
+  background: #fc8181; z-index: 5; pointer-events: none;
+}
+.tl-now-label {
+  position: absolute; top: -22px; font-size: 10px;
+  color: #fc8181; font-weight: 700; white-space: nowrap;
+  transform: translateX(-50%);
+}
+.tl-grid-line {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: #4a5568; pointer-events: none; z-index: 1;
+}
+.tl-hour-label {
+  position: absolute; top: 0;
+  font-size: 10px; color: #718096;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* タップ詳細ポップアップ */
+#tl-popup {
+  position: fixed; bottom: 80px; left: 50%;
+  transform: translateX(-50%);
+  background: #2d3748; color: #e2e8f0;
+  padding: 10px 16px; border-radius: 12px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  border: 1px solid #4a5568;
+  z-index: 200; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s;
+  white-space: nowrap; max-width: 90vw;
+  text-align: center;
+}
+#tl-popup.show { opacity: 1; }
 
 /* エクスポートFAB */
 #export-btn {
-  position: fixed;
-  bottom: 24px; right: 20px;
-  background: #38a169;
-  color: #fff;
-  border: none;
-  border-radius: 16px;
-  padding: 12px 20px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(56,161,105,0.4);
-  z-index: 100;
-  touch-action: manipulation;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  position: fixed; bottom: 24px; right: 20px;
+  background: #38a169; color: #fff; border: none; border-radius: 16px;
+  padding: 12px 20px; font-size: 14px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 4px 16px rgba(56,161,105,0.4);
+  z-index: 100; touch-action: manipulation;
+  display: flex; align-items: center; gap: 6px;
 }
 #export-btn:active { background: #276749; }
+#export-btn.hidden { display: none; }
 
 /* トースト */
 #toast {
@@ -213,10 +235,8 @@ select:focus { border: 1px solid #63b3ed; }
   padding: 10px 20px; border-radius: 24px;
   font-size: 14px; font-weight: 600;
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  z-index: 8000;
-  opacity: 0; transition: opacity 0.3s, transform 0.3s;
-  pointer-events: none;
-  white-space: nowrap;
+  z-index: 8000; opacity: 0; transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none; white-space: nowrap;
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -235,54 +255,81 @@ select:focus { border: 1px solid #63b3ed; }
     </a>
   </div>
 
-  <!-- フィルター -->
-  <div id="filter-panel">
-    <select id="filter-signal">
-      <option value="">すべての信号機</option>
-    </select>
-    <select id="filter-state">
-      <option value="">すべての状態</option>
-      <option value="red">🔴 赤</option>
-      <option value="yellow">🟡 黄</option>
-      <option value="green">🟢 青</option>
-      <option value="arrow">➡️ 矢印</option>
-    </select>
-    <select id="filter-daytype">
-      <option value="">平日・休日</option>
-      <option value="weekday">平日</option>
-      <option value="holiday">休日</option>
-    </select>
-    <input type="date" id="filter-date-from" title="開始日">
-    <input type="date" id="filter-date-to"   title="終了日">
-    <button id="filter-reset">リセット</button>
+  <!-- タブ -->
+  <div id="tabs">
+    <button class="tab-btn active" data-tab="list">一覧</button>
+    <button class="tab-btn"        data-tab="timeline">タイムライン</button>
   </div>
 
-  <!-- 統計 -->
-  <div id="stats-bar">
-    <span id="total-count">0件</span>
-    <span class="stat-chip"><span class="chip-emoji">🔴</span><span class="chip-count" id="cnt-red">0</span></span>
-    <span class="stat-chip"><span class="chip-emoji">🟡</span><span class="chip-count" id="cnt-yellow">0</span></span>
-    <span class="stat-chip"><span class="chip-emoji">🟢</span><span class="chip-count" id="cnt-green">0</span></span>
-    <span class="stat-chip"><span class="chip-emoji">➡️</span><span class="chip-count" id="cnt-arrow">0</span></span>
-    <span class="stat-chip" style="margin-left:auto;">
-      <span style="color:#a0aec0;font-size:12px;" id="avg-duration"></span>
-    </span>
+  <!-- 一覧タブ -->
+  <div id="tab-list" class="tab-content">
+    <div id="filter-panel">
+      <select id="filter-signal"><option value="">すべての信号機</option></select>
+      <select id="filter-state">
+        <option value="">すべての状態</option>
+        <option value="red">🔴 赤</option>
+        <option value="yellow">🟡 黄</option>
+        <option value="green">🟢 青</option>
+        <option value="arrow">➡️ 矢印</option>
+      </select>
+      <select id="filter-daytype">
+        <option value="">平日・休日</option>
+        <option value="weekday">平日</option>
+        <option value="holiday">休日</option>
+      </select>
+      <input type="date" id="filter-date-from">
+      <input type="date" id="filter-date-to">
+      <button id="filter-reset">リセット</button>
+    </div>
+    <div id="stats-bar">
+      <span id="total-count">0件</span>
+      <span class="stat-chip"><span class="chip-emoji">🔴</span><span class="chip-count" id="cnt-red">0</span></span>
+      <span class="stat-chip"><span class="chip-emoji">🟡</span><span class="chip-count" id="cnt-yellow">0</span></span>
+      <span class="stat-chip"><span class="chip-emoji">🟢</span><span class="chip-count" id="cnt-green">0</span></span>
+      <span class="stat-chip"><span class="chip-emoji">➡️</span><span class="chip-count" id="cnt-arrow">0</span></span>
+      <span class="stat-chip" style="margin-left:auto;">
+        <span style="color:#a0aec0;font-size:12px;" id="avg-duration"></span>
+      </span>
+    </div>
+    <div id="records-section"><div id="records-empty">読み込み中…</div></div>
   </div>
 
-  <!-- 記録一覧 -->
-  <div id="records-section">
-    <div id="records-empty">読み込み中…</div>
+  <!-- タイムラインタブ -->
+  <div id="tab-timeline" class="tab-content hidden">
+    <div id="tl-controls">
+      <select id="tl-signal"><option value="">-- 信号機を選択 --</option></select>
+      <select id="tl-daytype">
+        <option value="">平日・休日</option>
+        <option value="weekday">平日</option>
+        <option value="holiday">休日</option>
+      </select>
+    </div>
+    <div id="tl-legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#E53E3E"></span>赤</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#D69E2E"></span>黄</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#38A169"></span>青</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#3182CE"></span>矢印</span>
+      <span class="legend-item" style="margin-left:auto;">
+        <span class="legend-dot" style="background:#fc8181;opacity:0.8;"></span>
+        <span>現在時刻</span>
+      </span>
+    </div>
+    <div id="tl-body">
+      <div id="tl-prompt">信号機を選択してください</div>
+    </div>
   </div>
 </div>
 
+<div id="tl-popup"></div>
 <button id="export-btn">📥 CSV出力</button>
 <div id="toast"></div>
 
 <script>
 'use strict';
 
-const STATE_LABELS = { red:'赤', yellow:'黄', green:'青', arrow:'矢印' };
-const STATE_EMOJIS = { red:'🔴', yellow:'🟡', green:'🟢', arrow:'➡️' };
+const STATE_LABELS   = { red:'赤', yellow:'黄', green:'青', arrow:'矢印' };
+const STATE_EMOJIS   = { red:'🔴', yellow:'🟡', green:'🟢', arrow:'➡️' };
+const STATE_COLORS   = { red:'#E53E3E', yellow:'#D69E2E', green:'#38A169', arrow:'#3182CE' };
 
 const DB_SIGNALS = localforage.createInstance({ name: 'signalmap', storeName: 'signals' });
 const DB_RECORDS = localforage.createInstance({ name: 'signalmap', storeName: 'records' });
@@ -295,21 +342,34 @@ let filtered   = [];
 //  ユーティリティ
 // =====================================================
 function formatDateTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleString('ja-JP', {
+  return new Date(iso).toLocaleString('ja-JP', {
     year:'numeric', month:'2-digit', day:'2-digit',
     hour:'2-digit', minute:'2-digit', second:'2-digit'
   });
 }
 function formatDate(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('ja-JP', { month:'2-digit', day:'2-digit' });
+  return new Date(iso).toLocaleDateString('ja-JP', { month:'2-digit', day:'2-digit' });
 }
 function formatTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  return new Date(iso).toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
 }
 function toDateStr(iso) { return iso ? iso.slice(0, 10) : ''; }
+
+function timeOfDaySecs(iso) {
+  const d = new Date(iso);
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+}
+function secsToHMS(s) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+function secsToHM(s) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
 
 function showToast(msg, ms = 2200) {
   const el = document.getElementById('toast');
@@ -324,32 +384,52 @@ function showToast(msg, ms = 2200) {
 // =====================================================
 async function loadData() {
   await DB_SIGNALS.iterate(sig => { signals[sig.id] = sig; });
-
   const arr = [];
   await DB_RECORDS.iterate(v => { arr.push(v); });
   arr.sort((a, b) => b.startTime.localeCompare(a.startTime));
   allRecords = arr;
-
-  buildSignalFilter();
+  buildSignalFilters();
   applyFilters();
 }
 
-function buildSignalFilter() {
-  const sel = document.getElementById('filter-signal');
-  // 既存オプション（最初の「すべて」以外）を削除
-  while (sel.options.length > 1) sel.remove(1);
-
+function buildSignalFilters() {
   const sigList = Object.values(signals).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+  // 一覧用
+  const sel1 = document.getElementById('filter-signal');
+  while (sel1.options.length > 1) sel1.remove(1);
   sigList.forEach(sig => {
     const opt = document.createElement('option');
-    opt.value = sig.id;
-    opt.textContent = sig.name;
-    sel.appendChild(opt);
+    opt.value = sig.id; opt.textContent = sig.name;
+    sel1.appendChild(opt);
+  });
+
+  // タイムライン用
+  const sel2 = document.getElementById('tl-signal');
+  while (sel2.options.length > 1) sel2.remove(1);
+  sigList.forEach(sig => {
+    const opt = document.createElement('option');
+    opt.value = sig.id; opt.textContent = sig.name;
+    sel2.appendChild(opt);
   });
 }
 
 // =====================================================
-//  フィルター
+//  タブ切替
+// =====================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('tab-list').classList.toggle('hidden', tab !== 'list');
+    document.getElementById('tab-timeline').classList.toggle('hidden', tab !== 'timeline');
+    document.getElementById('export-btn').classList.toggle('hidden', tab !== 'list');
+    if (tab === 'timeline') renderTimeline();
+  });
+});
+
+// =====================================================
+//  一覧：フィルター
 // =====================================================
 function applyFilters() {
   const sigId   = document.getElementById('filter-signal').value;
@@ -359,11 +439,11 @@ function applyFilters() {
   const to      = document.getElementById('filter-date-to').value;
 
   filtered = allRecords.filter(r => {
-    if (sigId   && r.signalId !== sigId)     return false;
-    if (state   && r.state !== state)         return false;
-    if (dayType && r.dayType !== dayType)     return false;
-    if (from    && toDateStr(r.startTime) < from) return false;
-    if (to      && toDateStr(r.startTime) > to)   return false;
+    if (sigId   && r.signalId !== sigId)              return false;
+    if (state   && r.state !== state)                  return false;
+    if (dayType && r.dayType !== dayType)               return false;
+    if (from    && toDateStr(r.startTime) < from)      return false;
+    if (to      && toDateStr(r.startTime) > to)        return false;
     return true;
   });
 
@@ -374,40 +454,33 @@ function applyFilters() {
 ['filter-signal','filter-state','filter-daytype','filter-date-from','filter-date-to'].forEach(id => {
   document.getElementById(id).addEventListener('change', applyFilters);
 });
-
 document.getElementById('filter-reset').addEventListener('click', () => {
-  document.getElementById('filter-signal').value    = '';
-  document.getElementById('filter-state').value     = '';
-  document.getElementById('filter-daytype').value   = '';
-  document.getElementById('filter-date-from').value = '';
-  document.getElementById('filter-date-to').value   = '';
+  ['filter-signal','filter-state','filter-daytype','filter-date-from','filter-date-to']
+    .forEach(id => { document.getElementById(id).value = ''; });
   applyFilters();
 });
 
 // =====================================================
-//  統計
+//  一覧：統計
 // =====================================================
 function updateStats() {
-  const counts = { red: 0, yellow: 0, green: 0, arrow: 0 };
+  const counts = { red:0, yellow:0, green:0, arrow:0 };
   let totalDur = 0;
-
   filtered.forEach(r => {
     if (counts[r.state] !== undefined) counts[r.state]++;
     totalDur += r.duration || 0;
   });
-
-  document.getElementById('total-count').textContent = `${filtered.length}件`;
-  document.getElementById('cnt-red').textContent    = counts.red;
-  document.getElementById('cnt-yellow').textContent = counts.yellow;
-  document.getElementById('cnt-green').textContent  = counts.green;
-  document.getElementById('cnt-arrow').textContent  = counts.arrow;
-
+  document.getElementById('total-count').textContent  = `${filtered.length}件`;
+  document.getElementById('cnt-red').textContent      = counts.red;
+  document.getElementById('cnt-yellow').textContent   = counts.yellow;
+  document.getElementById('cnt-green').textContent    = counts.green;
+  document.getElementById('cnt-arrow').textContent    = counts.arrow;
   const avg = filtered.length ? Math.round(totalDur / filtered.length) : 0;
   document.getElementById('avg-duration').textContent = filtered.length ? `平均 ${avg}秒` : '';
 }
 
 // =====================================================
-//  一覧表示
+//  一覧：描画
 // =====================================================
 function renderList() {
   const section = document.getElementById('records-section');
@@ -422,7 +495,7 @@ function renderList() {
   }
 
   filtered.forEach(rec => {
-    const sig = signals[rec.signalId];
+    const sig  = signals[rec.signalId];
     const card = document.createElement('div');
     card.className = 'record-card';
     card.innerHTML = `
@@ -441,14 +514,211 @@ function renderList() {
 }
 
 // =====================================================
+//  タイムライン
+// =====================================================
+let tlNowTimer = null;
+
+document.getElementById('tl-signal').addEventListener('change', renderTimeline);
+document.getElementById('tl-daytype').addEventListener('change', renderTimeline);
+
+function renderTimeline() {
+  const sigId   = document.getElementById('tl-signal').value;
+  const dayType = document.getElementById('tl-daytype').value;
+  const body    = document.getElementById('tl-body');
+
+  if (tlNowTimer) { clearInterval(tlNowTimer); tlNowTimer = null; }
+
+  if (!sigId) {
+    body.innerHTML = '<div id="tl-prompt">信号機を選択してください</div>';
+    return;
+  }
+
+  let recs = allRecords.filter(r => r.signalId === sigId);
+  if (dayType) recs = recs.filter(r => r.dayType === dayType);
+
+  if (!recs.length) {
+    body.innerHTML = '<div id="tl-empty-msg">この信号機の記録がありません</div>';
+    return;
+  }
+
+  // --- 時間範囲を計算 ---
+  let minSec = Infinity, maxSec = -Infinity;
+  recs.forEach(r => {
+    const s = timeOfDaySecs(r.startTime);
+    const e = s + (r.duration || 0);
+    if (s < minSec) minSec = s;
+    if (e > maxSec) maxSec = e;
+  });
+  // 余白: 前後5分
+  minSec = Math.max(0,     minSec - 300);
+  maxSec = Math.min(86400, maxSec + 300);
+  const totalSec = maxSec - minSec;
+
+  // --- 日付ごとにグループ ---
+  const byDate = {};
+  recs.forEach(r => {
+    const date = toDateStr(r.startTime);
+    if (!byDate[date]) byDate[date] = [];
+    byDate[date].push(r);
+  });
+  const dates = Object.keys(byDate).sort();
+
+  // --- DOM 構築 ---
+  body.innerHTML = '';
+
+  // 時刻軸（sticky）
+  const axisRow = document.createElement('div');
+  axisRow.id = 'tl-time-axis';
+  axisRow.style.cssText = 'position:sticky;top:0;z-index:10;background:#1a202c;border-bottom:1px solid #4a5568;height:26px;display:flex;align-items:flex-end;padding-bottom:3px;';
+
+  const axisLabel = document.createElement('div');
+  axisLabel.style.cssText = 'width:52px;flex-shrink:0;';
+  axisRow.appendChild(axisLabel);
+
+  const axisBarArea = document.createElement('div');
+  axisBarArea.style.cssText = 'flex:1;position:relative;height:22px;';
+
+  // グリッド線・時刻ラベル
+  const interval = totalSec <= 3600 ? 600 : totalSec <= 10800 ? 1800 : 3600; // 10分/30分/1時間
+  for (let t = Math.ceil(minSec / interval) * interval; t <= maxSec; t += interval) {
+    const pct = (t - minSec) / totalSec * 100;
+    const label = document.createElement('div');
+    label.className = 'tl-hour-label';
+    label.style.left = pct + '%';
+    label.textContent = secsToHM(t);
+    axisBarArea.appendChild(label);
+  }
+  axisRow.appendChild(axisBarArea);
+  body.appendChild(axisRow);
+
+  // データ行
+  const rowsDiv = document.createElement('div');
+  rowsDiv.className = 'tl-rows';
+
+  dates.forEach(date => {
+    const row = document.createElement('div');
+    row.className = 'tl-row';
+
+    const label = document.createElement('div');
+    label.className = 'tl-date-label';
+    label.textContent = date.slice(5).replace('-', '/'); // MM/DD
+
+    const barArea = document.createElement('div');
+    barArea.className = 'tl-bar-area';
+
+    // グリッド線
+    for (let t = Math.ceil(minSec / interval) * interval; t <= maxSec; t += interval) {
+      const pct = (t - minSec) / totalSec * 100;
+      const grid = document.createElement('div');
+      grid.className = 'tl-grid-line';
+      grid.style.left = pct + '%';
+      barArea.appendChild(grid);
+    }
+
+    // 記録バー
+    byDate[date].forEach(rec => {
+      const s   = timeOfDaySecs(rec.startTime);
+      const pct = (s - minSec) / totalSec * 100;
+      const wPct = Math.max(0.3, rec.duration / totalSec * 100);
+
+      const bar = document.createElement('div');
+      bar.className = `tl-bar ${rec.state}`;
+      bar.style.left  = pct + '%';
+      bar.style.width = wPct + '%';
+
+      // タップでポップアップ
+      bar.addEventListener('click', e => {
+        e.stopPropagation();
+        showTlPopup(
+          `${STATE_EMOJIS[rec.state]} ${STATE_LABELS[rec.state]}　` +
+          `${formatTime(rec.startTime)} → ${secsToHMS(s + rec.duration)}　` +
+          `（${rec.duration}秒）`
+        );
+      });
+      barArea.appendChild(bar);
+    });
+
+    row.appendChild(label);
+    row.appendChild(barArea);
+    rowsDiv.appendChild(row);
+  });
+
+  body.appendChild(rowsDiv);
+
+  // 現在時刻ライン（全行にまたがるオーバーレイ）
+  renderNowLine(body, minSec, maxSec, totalSec);
+  tlNowTimer = setInterval(() => renderNowLine(body, minSec, maxSec, totalSec), 10000);
+
+  // 背景タップでポップアップを消す
+  body.addEventListener('click', () => hideTlPopup(), { once: false });
+}
+
+function renderNowLine(body, minSec, maxSec, totalSec) {
+  const old = body.querySelector('.tl-now-overlay');
+  if (old) old.remove();
+
+  const now = new Date();
+  const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  if (nowSec < minSec || nowSec > maxSec) return;
+
+  const pct = (nowSec - minSec) / totalSec * 100;
+
+  // 軸ラベル位置にも"今"を描画
+  const axisBarArea = body.querySelector('#tl-time-axis > div:last-child');
+  if (axisBarArea) {
+    const nowAxisLine = document.createElement('div');
+    nowAxisLine.style.cssText = `position:absolute;top:0;bottom:0;width:2px;background:#fc8181;left:${pct}%;z-index:6;`;
+    nowAxisLine.classList.add('tl-now-axis');
+    axisBarArea.querySelectorAll('.tl-now-axis').forEach(el => el.remove());
+    axisBarArea.appendChild(nowAxisLine);
+
+    const nowAxisLabel = document.createElement('div');
+    nowAxisLabel.style.cssText = `position:absolute;top:0;font-size:10px;color:#fc8181;font-weight:700;left:${pct}%;transform:translateX(-50%);white-space:nowrap;z-index:7;`;
+    nowAxisLabel.textContent = secsToHM(nowSec);
+    nowAxisLabel.classList.add('tl-now-axis');
+    axisBarArea.appendChild(nowAxisLabel);
+  }
+
+  // データ行にオーバーレイ
+  const rowsDiv = body.querySelector('.tl-rows');
+  if (!rowsDiv) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'tl-now-overlay';
+  overlay.style.cssText = `position:absolute;pointer-events:none;z-index:4;`;
+
+  // 各 barArea に縦線を描画
+  rowsDiv.querySelectorAll('.tl-bar-area').forEach(ba => {
+    const line = document.createElement('div');
+    line.style.cssText = `position:absolute;top:0;bottom:0;width:2px;background:#fc8181;opacity:0.8;left:${pct}%;z-index:4;border-radius:1px;`;
+    ba.querySelectorAll('.tl-now-bar-line').forEach(el => el.remove());
+    line.classList.add('tl-now-bar-line');
+    ba.appendChild(line);
+  });
+}
+
+// =====================================================
+//  タイムライン：ポップアップ
+// =====================================================
+let popupTimer = null;
+function showTlPopup(msg) {
+  const el = document.getElementById('tl-popup');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(popupTimer);
+  popupTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+function hideTlPopup() {
+  document.getElementById('tl-popup').classList.remove('show');
+}
+
+// =====================================================
 //  CSVエクスポート
 // =====================================================
-document.getElementById('export-btn').addEventListener('click', exportCSV);
-
-function exportCSV() {
+document.getElementById('export-btn').addEventListener('click', () => {
   if (!filtered.length) { showToast('エクスポートするデータがありません'); return; }
 
-  const header = ['日時', '信号機名', '状態', '秒数', '平日/休日', '開始時刻', '終了時刻'];
+  const header = ['日時','信号機名','状態','秒数','平日/休日','開始時刻','終了時刻'];
   const rows = filtered.map(r => {
     const sig = signals[r.signalId];
     return [
@@ -459,21 +729,21 @@ function exportCSV() {
       r.dayType === 'weekday' ? '平日' : '休日',
       r.startTime,
       r.endTime
-    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   });
 
-  const csv = '\uFEFF' + [header.join(','), ...rows].join('\r\n');
+  const csv  = '\uFEFF' + [header.join(','), ...rows].join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href     = url;
+  a.href = url;
   a.download = `signalmap_${new Date().toISOString().slice(0,10)}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast(`${filtered.length}件をCSVに出力しました`);
-}
+});
 
 // =====================================================
 //  起動
