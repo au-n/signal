@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SignalMap 収集</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%;
+  background: #1a202c;
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  font-size: 16px;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+}
+
+/* ヘッダー */
+#header {
+  background: #2d3748;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #4a5568;
+  flex-shrink: 0;
+}
+#header h1 { font-size: 16px; font-weight: 700; color: #90cdf4; }
+#header-right { display: flex; gap: 8px; align-items: center; }
+.icon-btn {
+  background: none; border: none; color: #90cdf4;
+  font-size: 20px; cursor: pointer; padding: 4px 8px;
+  border-radius: 6px; touch-action: manipulation;
+}
+.icon-btn:active { background: rgba(144,205,244,0.15); }
+
+/* 信号機セレクター */
+#signal-selector {
+  background: #2d3748;
+  padding: 10px 12px;
+  border-bottom: 1px solid #4a5568;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#current-signal-btn {
+  flex: 1;
+  background: #4a5568;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #e2e8f0;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  touch-action: manipulation;
+}
+#current-signal-btn:active { background: #718096; }
+#current-signal-btn.none { color: #718096; }
+#signal-arrow { font-size: 12px; color: #a0aec0; }
+
+/* アクティブバー */
+#active-bar {
+  background: #2d3748;
+  padding: 6px 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #4a5568;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+#active-bar.idle   { color: #718096; }
+#active-bar.red    { background: rgba(229,62,62,0.25);   color: #fc8181; }
+#active-bar.yellow { background: rgba(236,201,75,0.25);  color: #f6e05e; }
+#active-bar.green  { background: rgba(56,161,105,0.25);  color: #68d391; }
+#active-bar.arrow  { background: rgba(49,130,206,0.25);  color: #63b3ed; }
+
+/* ボタンエリア */
+#button-area {
+  flex: 0 0 auto;
+  background: #1a202c;
+  padding: 10px 8px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.sig-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  border: none;
+  min-height: 88px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+.sig-btn .btn-icon  { font-size: 28px; line-height: 1; }
+.sig-btn .btn-label { font-size: 12px; font-weight: 700; margin-top: 4px; }
+.sig-btn .btn-timer { font-size: 22px; font-weight: 800; margin-top: 2px; line-height: 1; }
+
+#btn-red    { background: linear-gradient(145deg, #E53E3E, #C53030); box-shadow: 0 4px 12px rgba(229,62,62,0.4); color: #fff; }
+#btn-yellow { background: linear-gradient(145deg, #D69E2E, #B7791F); box-shadow: 0 4px 12px rgba(214,158,46,0.4); color: #fff; }
+#btn-green  { background: linear-gradient(145deg, #38A169, #276749); box-shadow: 0 4px 12px rgba(56,161,105,0.4); color: #fff; }
+#btn-arrow  { background: linear-gradient(145deg, #3182CE, #2B6CB0); box-shadow: 0 4px 12px rgba(49,130,206,0.4); color: #fff; }
+
+.sig-btn.pressing {
+  transform: scale(0.93);
+  filter: brightness(1.3);
+  box-shadow: 0 0 20px 4px currentColor;
+}
+.sig-btn:disabled, .sig-btn.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+  transform: none;
+  filter: none;
+}
+
+@keyframes pulse-glow {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+.sig-btn.pressing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255,255,255,0.15);
+  animation: pulse-glow 1s infinite;
+}
+
+/* 記録一覧 */
+#records-section {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid #4a5568;
+}
+#records-header {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #a0aec0;
+  font-weight: 600;
+  background: #2d3748;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+#records-list {
+  flex: 1 1 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+.record-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2d3748;
+  gap: 8px;
+  font-size: 13px;
+}
+.record-row:nth-child(even) { background: #1e2736; }
+.rec-state {
+  width: 32px;
+  text-align: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.rec-signal {
+  flex: 1;
+  font-weight: 600;
+  color: #e2e8f0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rec-duration {
+  color: #a0aec0;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.rec-time {
+  color: #718096;
+  font-size: 11px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+#records-empty {
+  text-align: center;
+  color: #4a5568;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+/* モーダル */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9000;
+  padding: 20px;
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: #2d3748;
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%; max-width: 360px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-box h2 { font-size: 18px; color: #90cdf4; margin-bottom: 16px; flex-shrink: 0; }
+.modal-box input[type="text"] {
+  width: 100%; padding: 12px;
+  background: #1a202c; border: 1px solid #4a5568;
+  border-radius: 8px; color: #e2e8f0; font-size: 16px;
+  margin-bottom: 16px;
+  outline: none;
+  flex-shrink: 0;
+}
+.modal-box input:focus { border-color: #63b3ed; }
+.modal-actions { display: flex; gap: 10px; flex-shrink: 0; }
+.btn-modal {
+  flex: 1; padding: 12px;
+  border-radius: 8px; border: none;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+.btn-modal.primary   { background: #3182ce; color: #fff; }
+.btn-modal.secondary { background: #4a5568; color: #e2e8f0; }
+.btn-modal.danger    { background: #e53e3e; color: #fff; }
+
+/* 信号機一覧モーダル */
+#signal-list-scroll {
+  flex: 1 1 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 12px;
+}
+.signal-list-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: #1a202c;
+  gap: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.signal-list-item:active { background: #4a5568; }
+.signal-list-item.selected { background: #2b4c7e; border: 1px solid #3182ce; }
+.signal-list-name { flex: 1; font-weight: 600; }
+.signal-list-count { font-size: 12px; color: #718096; }
+.signal-list-delete {
+  background: none; border: none; color: #fc8181;
+  font-size: 18px; cursor: pointer; padding: 4px 6px;
+  border-radius: 4px; touch-action: manipulation;
+  flex-shrink: 0;
+}
+.signal-list-delete:active { background: rgba(252,129,129,0.15); }
+#add-signal-row {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+#add-signal-input {
+  flex: 1; padding: 10px 12px;
+  background: #1a202c; border: 1px solid #4a5568;
+  border-radius: 8px; color: #e2e8f0; font-size: 15px;
+  outline: none;
+}
+#add-signal-input:focus { border-color: #63b3ed; }
+#add-signal-ok {
+  padding: 10px 14px;
+  background: #38a169; color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+#add-signal-ok:active { background: #276749; }
+
+/* トースト */
+#toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #2d3748; color: #e2e8f0;
+  padding: 10px 20px; border-radius: 24px;
+  font-size: 14px; font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  z-index: 8000;
+  opacity: 0; transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #button-area { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ヘッダー -->
+  <div id="header">
+    <h1>SignalMap 収集</h1>
+    <div id="header-right">
+      <a href="../view/" style="text-decoration:none;">
+        <button class="icon-btn" title="表示アプリへ">📊</button>
+      </a>
+    </div>
+  </div>
+
+  <!-- 信号機セレクター -->
+  <div id="signal-selector">
+    <button id="current-signal-btn" class="none">
+      <span id="current-signal-name">信号機を選択してください</span>
+      <span id="signal-arrow">▼</span>
+    </button>
+  </div>
+
+  <!-- アクティブバー -->
+  <div id="active-bar" class="idle">信号機を選択して長押し記録</div>
+
+  <!-- ボタンエリア -->
+  <div id="button-area">
+    <button class="sig-btn" id="btn-red"    data-state="red">
+      <span class="btn-icon">🔴</span>
+      <span class="btn-label">赤</span>
+      <span class="btn-timer"></span>
+    </button>
+    <button class="sig-btn" id="btn-yellow" data-state="yellow">
+      <span class="btn-icon">🟡</span>
+      <span class="btn-label">黄</span>
+      <span class="btn-timer"></span>
+    </button>
+    <button class="sig-btn" id="btn-green"  data-state="green">
+      <span class="btn-icon">🟢</span>
+      <span class="btn-label">青</span>
+      <span class="btn-timer"></span>
+    </button>
+    <button class="sig-btn" id="btn-arrow"  data-state="arrow">
+      <span class="btn-icon">➡️</span>
+      <span class="btn-label">矢印</span>
+      <span class="btn-timer"></span>
+    </button>
+  </div>
+
+  <!-- 記録一覧 -->
+  <div id="records-section">
+    <div id="records-header">
+      <span>直近の記録</span>
+      <span id="records-count-label">0件</span>
+    </div>
+    <div id="records-list">
+      <div id="records-empty">記録がありません</div>
+    </div>
+  </div>
+</div>
+
+<!-- 信号機選択モーダル -->
+<div id="signal-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h2>信号機を選択</h2>
+    <div id="add-signal-row">
+      <input type="text" id="add-signal-input" placeholder="新しい信号機名" maxlength="30">
+      <button id="add-signal-ok">追加</button>
+    </div>
+    <div id="signal-list-scroll">
+      <div id="signal-list-inner"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal secondary" id="signal-modal-close">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div id="delete-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h2>削除の確認</h2>
+    <p id="delete-msg" style="color:#a0aec0;font-size:14px;margin-bottom:16px;"></p>
+    <div class="modal-actions">
+      <button class="btn-modal secondary" id="delete-cancel">キャンセル</button>
+      <button class="btn-modal danger"    id="delete-ok">削除する</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+const STATE_LABELS = { red:'赤', yellow:'黄', green:'青', arrow:'矢印' };
+const STATE_EMOJIS = { red:'🔴', yellow:'🟡', green:'🟢', arrow:'➡️' };
+const MAX_RECORDS  = 30;
+
+const DB_SIGNALS = localforage.createInstance({ name: 'signalmap', storeName: 'signals' });
+const DB_RECORDS = localforage.createInstance({ name: 'signalmap', storeName: 'records' });
+
+let signals       = {};
+let currentSigId  = null;
+let recentRecords = [];
+let noSleep       = null;
+
+// 長押し状態
+let pressState = {
+  active: false, btnEl: null, state: null,
+  startTime: null, timerEl: null, intervalId: null
+};
+
+// =====================================================
+//  ユーティリティ
+// =====================================================
+function uuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+function getDayType(date) {
+  const d = date.getDay();
+  return (d === 0 || d === 6) ? 'holiday' : 'weekday';
+}
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('ja-JP', { month:'2-digit', day:'2-digit' });
+}
+
+function showToast(msg, ms = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// =====================================================
+//  信号機管理
+// =====================================================
+async function loadSignals() {
+  await DB_SIGNALS.iterate(sig => { signals[sig.id] = sig; });
+}
+
+function selectSignal(sigId) {
+  currentSigId = sigId;
+  const sig = signals[sigId];
+  const btn = document.getElementById('current-signal-btn');
+  document.getElementById('current-signal-name').textContent = sig ? sig.name : '信号機を選択してください';
+  btn.classList.toggle('none', !sig);
+  updateButtonState();
+}
+
+function updateButtonState() {
+  const disabled = !currentSigId;
+  document.querySelectorAll('.sig-btn').forEach(b => {
+    b.classList.toggle('disabled', disabled);
+  });
+  const bar = document.getElementById('active-bar');
+  if (disabled) {
+    bar.className = 'idle';
+    bar.textContent = '信号機を選択して長押し記録';
+  } else if (!pressState.active) {
+    bar.className = 'idle';
+    bar.textContent = `「${signals[currentSigId]?.name}」に記録`;
+  }
+}
+
+// 信号機モーダル
+document.getElementById('current-signal-btn').addEventListener('click', openSignalModal);
+
+function openSignalModal() {
+  renderSignalList();
+  document.getElementById('add-signal-input').value = '';
+  openModal('signal-modal');
+}
+
+async function renderSignalList() {
+  const inner = document.getElementById('signal-list-inner');
+  const sigList = Object.values(signals);
+
+  if (!sigList.length) {
+    inner.innerHTML = '<div style="text-align:center;color:#4a5568;padding:20px;font-size:14px;">信号機がありません<br>上から追加してください</div>';
+    return;
+  }
+
+  // 各信号機の記録件数を取得
+  const counts = {};
+  sigList.forEach(s => { counts[s.id] = 0; });
+  await DB_RECORDS.iterate(v => { if (counts[v.signalId] !== undefined) counts[v.signalId]++; });
+
+  inner.innerHTML = '';
+  sigList.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  sigList.forEach(sig => {
+    const div = document.createElement('div');
+    div.className = 'signal-list-item' + (sig.id === currentSigId ? ' selected' : '');
+    div.innerHTML = `
+      <div class="signal-list-name">${sig.name}</div>
+      <div class="signal-list-count">${counts[sig.id]}件</div>
+      <button class="signal-list-delete" data-id="${sig.id}" title="削除">🗑</button>
+    `;
+    div.addEventListener('click', e => {
+      if (e.target.closest('.signal-list-delete')) return;
+      selectSignal(sig.id);
+      closeModal('signal-modal');
+    });
+    inner.appendChild(div);
+  });
+
+  // 削除ボタン
+  inner.querySelectorAll('.signal-list-delete').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openDeleteModal(btn.dataset.id);
+    });
+  });
+}
+
+// 新規追加
+document.getElementById('add-signal-ok').addEventListener('click', addSignal);
+document.getElementById('add-signal-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addSignal();
+});
+
+async function addSignal() {
+  const input = document.getElementById('add-signal-input');
+  const name = input.value.trim();
+  if (!name) { showToast('名前を入力してください'); return; }
+
+  const sig = {
+    id: uuid(), name,
+    latitude: null, longitude: null,
+    createdAt: new Date().toISOString()
+  };
+  await DB_SIGNALS.setItem(sig.id, sig);
+  signals[sig.id] = sig;
+  input.value = '';
+  selectSignal(sig.id);
+  renderSignalList();
+  showToast(`「${name}」を追加しました`);
+}
+
+// 削除
+let deleteTargetId = null;
+document.getElementById('delete-cancel').addEventListener('click', () => closeModal('delete-modal'));
+document.getElementById('delete-ok').addEventListener('click', async () => {
+  const id = deleteTargetId;
+  await DB_SIGNALS.removeItem(id);
+  delete signals[id];
+  if (currentSigId === id) selectSignal(null);
+  // 紐付き記録削除
+  const toDelete = [];
+  await DB_RECORDS.iterate((v, k) => { if (v.signalId === id) toDelete.push(k); });
+  await Promise.all(toDelete.map(k => DB_RECORDS.removeItem(k)));
+  closeModal('delete-modal');
+  await renderSignalList();
+  await loadRecentRecords();
+  showToast('削除しました');
+});
+
+function openDeleteModal(sigId) {
+  deleteTargetId = sigId;
+  document.getElementById('delete-msg').textContent =
+    `「${signals[sigId]?.name}」と紐付く全記録を削除します。元に戻せません。`;
+  closeModal('signal-modal');
+  openModal('delete-modal');
+}
+
+document.getElementById('signal-modal-close').addEventListener('click', () => closeModal('signal-modal'));
+
+// =====================================================
+//  記録一覧
+// =====================================================
+async function loadRecentRecords() {
+  const all = [];
+  await DB_RECORDS.iterate(v => all.push(v));
+  all.sort((a, b) => b.startTime.localeCompare(a.startTime));
+  recentRecords = all.slice(0, MAX_RECORDS);
+  renderRecords();
+}
+
+function renderRecords() {
+  const list  = document.getElementById('records-list');
+  const empty = document.getElementById('records-empty');
+  const countLabel = document.getElementById('records-count-label');
+
+  countLabel.textContent = `${recentRecords.length}件`;
+
+  if (!recentRecords.length) {
+    empty.style.display = 'block';
+    list.innerHTML = '';
+    list.appendChild(empty);
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.innerHTML = '';
+
+  recentRecords.forEach(rec => {
+    const sig = signals[rec.signalId];
+    const row = document.createElement('div');
+    row.className = 'record-row';
+    row.innerHTML = `
+      <span class="rec-state">${STATE_EMOJIS[rec.state] || '?'}</span>
+      <span class="rec-signal">${sig ? sig.name : '(削除済)'}</span>
+      <span class="rec-duration">${rec.duration}秒</span>
+      <span class="rec-time">${formatDate(rec.startTime)} ${formatTime(rec.startTime)}</span>
+    `;
+    list.appendChild(row);
+  });
+}
+
+// =====================================================
+//  信号ボタン（長押し記録）
+// =====================================================
+const buttons = document.querySelectorAll('.sig-btn');
+
+function startPress(btn) {
+  if (pressState.active || !currentSigId) return;
+
+  const state = btn.dataset.state;
+  pressState.active    = true;
+  pressState.btnEl     = btn;
+  pressState.state     = state;
+  pressState.startTime = new Date();
+  pressState.timerEl   = btn.querySelector('.btn-timer');
+
+  btn.classList.add('pressing');
+  buttons.forEach(b => { if (b !== btn) b.classList.add('disabled'); });
+
+  const bar = document.getElementById('active-bar');
+  bar.className = 'idle ' + state;
+
+  let elapsed = 0;
+  pressState.timerEl.textContent = '0秒';
+  pressState.intervalId = setInterval(() => {
+    elapsed++;
+    pressState.timerEl.textContent = `${elapsed}秒`;
+    bar.textContent = `${STATE_EMOJIS[state]}　押し中…　${elapsed}秒`;
+  }, 1000);
+}
+
+async function endPress() {
+  if (!pressState.active) return;
+
+  const endTime  = new Date();
+  const duration = Math.round((endTime - pressState.startTime) / 1000);
+  const state    = pressState.state;
+
+  if (navigator.vibrate) navigator.vibrate(40);
+
+  clearInterval(pressState.intervalId);
+  pressState.btnEl.classList.remove('pressing');
+  pressState.timerEl.textContent = '';
+  buttons.forEach(b => b.classList.remove('disabled'));
+
+  pressState.active = false;
+  updateButtonState();
+
+  if (duration < 1) return;
+
+  const sig = signals[currentSigId];
+  if (!sig) return;
+
+  const rec = {
+    id:        uuid(),
+    signalId:  currentSigId,
+    state,
+    startTime: pressState.startTime.toISOString(),
+    endTime:   endTime.toISOString(),
+    duration,
+    dayType:   getDayType(pressState.startTime),
+    latitude:  null,
+    longitude: null
+  };
+  await DB_RECORDS.setItem(rec.id, rec);
+
+  await loadRecentRecords();
+  showToast(`「${sig.name}」に ${STATE_LABELS[state]} ${duration}秒 を記録`);
+}
+
+buttons.forEach(btn => {
+  btn.addEventListener('touchstart', e => { e.preventDefault(); startPress(btn); }, { passive: false });
+  btn.addEventListener('touchend',   e => { e.preventDefault(); endPress(); }, { passive: false });
+  btn.addEventListener('touchcancel',e => { e.preventDefault(); endPress(); }, { passive: false });
+  btn.addEventListener('mousedown',  () => startPress(btn));
+  btn.addEventListener('mouseup',    () => endPress());
+  btn.addEventListener('mouseleave', () => { if (pressState.active && pressState.btnEl === btn) endPress(); });
+});
+
+// =====================================================
+//  NoSleep
+// =====================================================
+function initNoSleep() {
+  if (typeof NoSleep !== 'undefined') {
+    noSleep = new NoSleep();
+    document.addEventListener('touchstart', () => noSleep.enable(), { once: true });
+  }
+}
+
+// =====================================================
+//  起動
+// =====================================================
+async function main() {
+  await loadSignals();
+  await loadRecentRecords();
+  updateButtonState();
+  initNoSleep();
+}
+
+main();
+</script>
+</body>
+</html>

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>SignalMap 表示</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%;
+  background: #1a202c;
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  font-size: 16px;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+}
+
+/* ヘッダー */
+#header {
+  background: #2d3748;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #4a5568;
+  flex-shrink: 0;
+}
+#header h1 { font-size: 16px; font-weight: 700; color: #90cdf4; }
+.icon-btn {
+  background: none; border: none; color: #90cdf4;
+  font-size: 20px; cursor: pointer; padding: 4px 8px;
+  border-radius: 6px; touch-action: manipulation;
+}
+.icon-btn:active { background: rgba(144,205,244,0.15); }
+
+/* フィルターパネル */
+#filter-panel {
+  background: #2d3748;
+  padding: 8px 12px;
+  border-bottom: 1px solid #4a5568;
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+select {
+  background: #4a5568;
+  border: none;
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  touch-action: manipulation;
+}
+select:focus { border: 1px solid #63b3ed; }
+
+#filter-date-from, #filter-date-to {
+  background: #4a5568;
+  border: none;
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+}
+#filter-date-from::-webkit-calendar-picker-indicator,
+#filter-date-to::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+#filter-reset {
+  background: #e53e3e;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#filter-reset:active { background: #c53030; }
+
+/* 統計バー */
+#stats-bar {
+  background: #1e2736;
+  padding: 8px 12px;
+  display: flex;
+  gap: 12px;
+  border-bottom: 1px solid #4a5568;
+  flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.stat-chip .chip-emoji { font-size: 16px; }
+.stat-chip .chip-count { color: #a0aec0; }
+#total-count { color: #90cdf4; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+/* 記録一覧 */
+#records-section {
+  flex: 1 1 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.record-card {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #2d3748;
+  gap: 10px;
+}
+.record-card:nth-child(even) { background: #1e2736; }
+
+.rec-state-icon {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.rec-state-icon.red    { background: rgba(229,62,62,0.2); }
+.rec-state-icon.yellow { background: rgba(214,158,46,0.2); }
+.rec-state-icon.green  { background: rgba(56,161,105,0.2); }
+.rec-state-icon.arrow  { background: rgba(49,130,206,0.2); }
+
+.rec-body { flex: 1; min-width: 0; }
+.rec-signal-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e2e8f0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rec-meta {
+  font-size: 12px;
+  color: #718096;
+  margin-top: 2px;
+}
+
+.rec-right {
+  flex-shrink: 0;
+  text-align: right;
+}
+.rec-duration-big {
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.rec-duration-big.red    { color: #fc8181; }
+.rec-duration-big.yellow { color: #f6e05e; }
+.rec-duration-big.green  { color: #68d391; }
+.rec-duration-big.arrow  { color: #63b3ed; }
+.rec-duration-unit { font-size: 11px; color: #718096; }
+
+#records-empty {
+  text-align: center;
+  color: #4a5568;
+  padding: 60px 20px;
+  font-size: 14px;
+}
+
+/* エクスポートFAB */
+#export-btn {
+  position: fixed;
+  bottom: 24px; right: 20px;
+  background: #38a169;
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(56,161,105,0.4);
+  z-index: 100;
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#export-btn:active { background: #276749; }
+
+/* トースト */
+#toast {
+  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #2d3748; color: #e2e8f0;
+  padding: 10px 20px; border-radius: 24px;
+  font-size: 14px; font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  z-index: 8000;
+  opacity: 0; transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #export-btn { bottom: calc(24px + env(safe-area-inset-bottom)); }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ヘッダー -->
+  <div id="header">
+    <h1>SignalMap 表示</h1>
+    <a href="../collect/" style="text-decoration:none;">
+      <button class="icon-btn" title="収集アプリへ">📝</button>
+    </a>
+  </div>
+
+  <!-- フィルター -->
+  <div id="filter-panel">
+    <select id="filter-signal">
+      <option value="">すべての信号機</option>
+    </select>
+    <select id="filter-state">
+      <option value="">すべての状態</option>
+      <option value="red">🔴 赤</option>
+      <option value="yellow">🟡 黄</option>
+      <option value="green">🟢 青</option>
+      <option value="arrow">➡️ 矢印</option>
+    </select>
+    <select id="filter-daytype">
+      <option value="">平日・休日</option>
+      <option value="weekday">平日</option>
+      <option value="holiday">休日</option>
+    </select>
+    <input type="date" id="filter-date-from" title="開始日">
+    <input type="date" id="filter-date-to"   title="終了日">
+    <button id="filter-reset">リセット</button>
+  </div>
+
+  <!-- 統計 -->
+  <div id="stats-bar">
+    <span id="total-count">0件</span>
+    <span class="stat-chip"><span class="chip-emoji">🔴</span><span class="chip-count" id="cnt-red">0</span></span>
+    <span class="stat-chip"><span class="chip-emoji">🟡</span><span class="chip-count" id="cnt-yellow">0</span></span>
+    <span class="stat-chip"><span class="chip-emoji">🟢</span><span class="chip-count" id="cnt-green">0</span></span>
+    <span class="stat-chip"><span class="chip-emoji">➡️</span><span class="chip-count" id="cnt-arrow">0</span></span>
+    <span class="stat-chip" style="margin-left:auto;">
+      <span style="color:#a0aec0;font-size:12px;" id="avg-duration"></span>
+    </span>
+  </div>
+
+  <!-- 記録一覧 -->
+  <div id="records-section">
+    <div id="records-empty">読み込み中…</div>
+  </div>
+</div>
+
+<button id="export-btn">📥 CSV出力</button>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+const STATE_LABELS = { red:'赤', yellow:'黄', green:'青', arrow:'矢印' };
+const STATE_EMOJIS = { red:'🔴', yellow:'🟡', green:'🟢', arrow:'➡️' };
+
+const DB_SIGNALS = localforage.createInstance({ name: 'signalmap', storeName: 'signals' });
+const DB_RECORDS = localforage.createInstance({ name: 'signalmap', storeName: 'records' });
+
+let signals    = {};
+let allRecords = [];
+let filtered   = [];
+
+// =====================================================
+//  ユーティリティ
+// =====================================================
+function formatDateTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString('ja-JP', {
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}
+function formatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('ja-JP', { month:'2-digit', day:'2-digit' });
+}
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+function toDateStr(iso) { return iso ? iso.slice(0, 10) : ''; }
+
+function showToast(msg, ms = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// =====================================================
+//  データ読み込み
+// =====================================================
+async function loadData() {
+  await DB_SIGNALS.iterate(sig => { signals[sig.id] = sig; });
+
+  const arr = [];
+  await DB_RECORDS.iterate(v => arr.push(v));
+  arr.sort((a, b) => b.startTime.localeCompare(a.startTime));
+  allRecords = arr;
+
+  buildSignalFilter();
+  applyFilters();
+}
+
+function buildSignalFilter() {
+  const sel = document.getElementById('filter-signal');
+  // 既存オプション（最初の「すべて」以外）を削除
+  while (sel.options.length > 1) sel.remove(1);
+
+  const sigList = Object.values(signals).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  sigList.forEach(sig => {
+    const opt = document.createElement('option');
+    opt.value = sig.id;
+    opt.textContent = sig.name;
+    sel.appendChild(opt);
+  });
+}
+
+// =====================================================
+//  フィルター
+// =====================================================
+function applyFilters() {
+  const sigId   = document.getElementById('filter-signal').value;
+  const state   = document.getElementById('filter-state').value;
+  const dayType = document.getElementById('filter-daytype').value;
+  const from    = document.getElementById('filter-date-from').value;
+  const to      = document.getElementById('filter-date-to').value;
+
+  filtered = allRecords.filter(r => {
+    if (sigId   && r.signalId !== sigId)     return false;
+    if (state   && r.state !== state)         return false;
+    if (dayType && r.dayType !== dayType)     return false;
+    if (from    && toDateStr(r.startTime) < from) return false;
+    if (to      && toDateStr(r.startTime) > to)   return false;
+    return true;
+  });
+
+  updateStats();
+  renderList();
+}
+
+['filter-signal','filter-state','filter-daytype','filter-date-from','filter-date-to'].forEach(id => {
+  document.getElementById(id).addEventListener('change', applyFilters);
+});
+
+document.getElementById('filter-reset').addEventListener('click', () => {
+  document.getElementById('filter-signal').value    = '';
+  document.getElementById('filter-state').value     = '';
+  document.getElementById('filter-daytype').value   = '';
+  document.getElementById('filter-date-from').value = '';
+  document.getElementById('filter-date-to').value   = '';
+  applyFilters();
+});
+
+// =====================================================
+//  統計
+// =====================================================
+function updateStats() {
+  const counts = { red: 0, yellow: 0, green: 0, arrow: 0 };
+  let totalDur = 0;
+
+  filtered.forEach(r => {
+    if (counts[r.state] !== undefined) counts[r.state]++;
+    totalDur += r.duration || 0;
+  });
+
+  document.getElementById('total-count').textContent = `${filtered.length}件`;
+  document.getElementById('cnt-red').textContent    = counts.red;
+  document.getElementById('cnt-yellow').textContent = counts.yellow;
+  document.getElementById('cnt-green').textContent  = counts.green;
+  document.getElementById('cnt-arrow').textContent  = counts.arrow;
+
+  const avg = filtered.length ? Math.round(totalDur / filtered.length) : 0;
+  document.getElementById('avg-duration').textContent = filtered.length ? `平均 ${avg}秒` : '';
+}
+
+// =====================================================
+//  一覧表示
+// =====================================================
+function renderList() {
+  const section = document.getElementById('records-section');
+  section.innerHTML = '';
+
+  if (!filtered.length) {
+    const empty = document.createElement('div');
+    empty.id = 'records-empty';
+    empty.textContent = allRecords.length ? 'フィルター結果が0件です' : '記録がありません';
+    section.appendChild(empty);
+    return;
+  }
+
+  filtered.forEach(rec => {
+    const sig = signals[rec.signalId];
+    const card = document.createElement('div');
+    card.className = 'record-card';
+    card.innerHTML = `
+      <div class="rec-state-icon ${rec.state}">${STATE_EMOJIS[rec.state] || '?'}</div>
+      <div class="rec-body">
+        <div class="rec-signal-name">${sig ? sig.name : '(削除済み)'}</div>
+        <div class="rec-meta">${formatDate(rec.startTime)} ${formatTime(rec.startTime)} · ${rec.dayType === 'weekday' ? '平日' : '休日'}</div>
+      </div>
+      <div class="rec-right">
+        <div class="rec-duration-big ${rec.state}">${rec.duration}</div>
+        <div class="rec-duration-unit">秒</div>
+      </div>
+    `;
+    section.appendChild(card);
+  });
+}
+
+// =====================================================
+//  CSVエクスポート
+// =====================================================
+document.getElementById('export-btn').addEventListener('click', exportCSV);
+
+function exportCSV() {
+  if (!filtered.length) { showToast('エクスポートするデータがありません'); return; }
+
+  const header = ['日時', '信号機名', '状態', '秒数', '平日/休日', '開始時刻', '終了時刻'];
+  const rows = filtered.map(r => {
+    const sig = signals[r.signalId];
+    return [
+      formatDateTime(r.startTime),
+      sig ? sig.name : '(削除済み)',
+      STATE_LABELS[r.state] || r.state,
+      r.duration,
+      r.dayType === 'weekday' ? '平日' : '休日',
+      r.startTime,
+      r.endTime
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+
+  const csv = '\uFEFF' + [header.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `signalmap_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`${filtered.length}件をCSVに出力しました`);
+}
+
+// =====================================================
+//  起動
+// =====================================================
+loadData();
+</script>
+</body>
+</html>
