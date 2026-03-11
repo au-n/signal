@@ -82,6 +82,12 @@ select {
   cursor: pointer; touch-action: manipulation;
 }
 #filter-reset:active { background: #c53030; }
+#manage-signals-btn {
+  background: #4a5568; border: none; border-radius: 8px;
+  color: #e2e8f0; padding: 6px 10px; font-size: 16px;
+  cursor: pointer; touch-action: manipulation; flex-shrink: 0;
+}
+#manage-signals-btn:active { background: #718096; }
 
 #stats-bar {
   background: #1e2736; padding: 8px 12px;
@@ -280,6 +286,7 @@ select {
       <input type="date" id="filter-date-from">
       <input type="date" id="filter-date-to">
       <button id="filter-reset">リセット</button>
+      <button id="manage-signals-btn" title="信号機管理">🗑</button>
     </div>
     <div id="stats-bar">
       <span id="total-count">0件</span>
@@ -316,6 +323,47 @@ select {
     </div>
     <div id="tl-body">
       <div id="tl-prompt">信号機を選択してください</div>
+    </div>
+  </div>
+</div>
+
+<!-- 信号機管理モーダル -->
+<div id="manage-modal" style="
+  position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  display:flex;align-items:center;justify-content:center;
+  z-index:9000;padding:20px;
+" class="hidden">
+  <div style="
+    background:#2d3748;border-radius:16px;padding:24px;
+    width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    max-height:80vh;display:flex;flex-direction:column;
+  ">
+    <h2 style="font-size:18px;color:#90cdf4;margin-bottom:16px;flex-shrink:0;">信号機管理</h2>
+    <div id="manage-list" style="flex:1 1 0;overflow-y:auto;"></div>
+    <div style="margin-top:12px;flex-shrink:0;">
+      <button id="manage-close" style="
+        width:100%;padding:12px;border-radius:8px;border:none;
+        background:#4a5568;color:#e2e8f0;font-size:15px;font-weight:700;cursor:pointer;
+      ">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div id="delete-modal" style="
+  position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  display:flex;align-items:center;justify-content:center;
+  z-index:9100;padding:20px;
+" class="hidden">
+  <div style="
+    background:#2d3748;border-radius:16px;padding:24px;
+    width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  ">
+    <h2 style="font-size:18px;color:#90cdf4;margin-bottom:12px;">削除の確認</h2>
+    <p id="delete-msg" style="color:#a0aec0;font-size:14px;margin-bottom:16px;"></p>
+    <div style="display:flex;gap:10px;">
+      <button id="delete-cancel" style="flex:1;padding:12px;border-radius:8px;border:none;background:#4a5568;color:#e2e8f0;font-size:15px;font-weight:700;cursor:pointer;">キャンセル</button>
+      <button id="delete-ok"     style="flex:1;padding:12px;border-radius:8px;border:none;background:#e53e3e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">削除する</button>
     </div>
   </div>
 </div>
@@ -455,8 +503,12 @@ function applyFilters() {
   document.getElementById(id).addEventListener('change', applyFilters);
 });
 document.getElementById('filter-reset').addEventListener('click', () => {
-  ['filter-signal','filter-state','filter-daytype','filter-date-from','filter-date-to']
-    .forEach(id => { document.getElementById(id).value = ''; });
+  ['filter-signal','filter-state','filter-daytype'].forEach(id => {
+    const el = document.getElementById(id);
+    el.selectedIndex = 0;
+  });
+  document.getElementById('filter-date-from').value = '';
+  document.getElementById('filter-date-to').value   = '';
   applyFilters();
 });
 
@@ -710,6 +762,72 @@ function showTlPopup(msg) {
 }
 function hideTlPopup() {
   document.getElementById('tl-popup').classList.remove('show');
+}
+
+// =====================================================
+//  信号機管理
+// =====================================================
+let deleteTargetId = null;
+
+document.getElementById('manage-signals-btn').addEventListener('click', openManageModal);
+document.getElementById('manage-close').addEventListener('click', () => {
+  document.getElementById('manage-modal').classList.add('hidden');
+});
+document.getElementById('delete-cancel').addEventListener('click', () => {
+  document.getElementById('delete-modal').classList.add('hidden');
+  document.getElementById('manage-modal').classList.remove('hidden');
+});
+document.getElementById('delete-ok').addEventListener('click', async () => {
+  const id = deleteTargetId;
+  await DB_SIGNALS.removeItem(id);
+  delete signals[id];
+  const toDelete = [];
+  await DB_RECORDS.iterate((v, k) => { if (v.signalId === id) toDelete.push(k); });
+  await Promise.all(toDelete.map(k => DB_RECORDS.removeItem(k)));
+  allRecords = allRecords.filter(r => r.signalId !== id);
+  document.getElementById('delete-modal').classList.add('hidden');
+  buildSignalFilters();
+  applyFilters();
+  openManageModal();
+  showToast('削除しました');
+});
+
+async function openManageModal() {
+  const list = document.getElementById('manage-list');
+  list.innerHTML = '';
+
+  const sigList = Object.values(signals).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+  if (!sigList.length) {
+    list.innerHTML = '<div style="text-align:center;color:#4a5568;padding:20px;font-size:14px;">信号機がありません</div>';
+  } else {
+    const counts = {};
+    sigList.forEach(s => { counts[s.id] = 0; });
+    allRecords.forEach(r => { if (counts[r.signalId] !== undefined) counts[r.signalId]++; });
+
+    sigList.forEach(sig => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;padding:10px;background:#1a202c;border-radius:8px;margin-bottom:6px;gap:10px;';
+      row.innerHTML = `
+        <div style="flex:1;font-weight:600;font-size:14px;">${sig.name}</div>
+        <div style="font-size:12px;color:#718096;">${counts[sig.id]}件</div>
+        <button data-id="${sig.id}" data-name="${sig.name}" style="
+          background:#e53e3e;border:none;border-radius:6px;
+          color:#fff;padding:6px 10px;font-size:13px;font-weight:700;cursor:pointer;
+        ">削除</button>
+      `;
+      row.querySelector('button').addEventListener('click', e => {
+        deleteTargetId = e.target.dataset.id;
+        document.getElementById('delete-msg').textContent =
+          `「${e.target.dataset.name}」と紐付く全記録（${counts[e.target.dataset.id]}件）を削除します。元に戻せません。`;
+        document.getElementById('manage-modal').classList.add('hidden');
+        document.getElementById('delete-modal').classList.remove('hidden');
+      });
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById('manage-modal').classList.remove('hidden');
 }
 
 // =====================================================
