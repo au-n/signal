@@ -326,7 +326,7 @@ async function loadData() {
   await DB_SIGNALS.iterate(sig => { signals[sig.id] = sig; });
 
   const arr = [];
-  await DB_RECORDS.iterate(v => arr.push(v));
+  await DB_RECORDS.iterate(v => { arr.push(v); });
   arr.sort((a, b) => b.startTime.localeCompare(a.startTime));
   allRecords = arr;
 
